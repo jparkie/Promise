@@ -6,6 +6,7 @@ import com.github.jparkie.promise.Promise;
 import com.github.jparkie.promise.Promises;
 import com.github.jparkie.promise.Scheduler;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -127,22 +128,30 @@ public final class ExtraPromises {
      * @return The zipped promise of the left and the right.
      */
     public static <T, U> Promise<Pair<T, U>> zip(Scheduler scheduler, Promise<T> tPromise, Promise<U> uPromise) {
+        final Object sequenceLock = new Object();
+        final AtomicBoolean leftFlag = new AtomicBoolean(false);
+        final AtomicBoolean rightFlag = new AtomicBoolean(false);
         final AtomicReference<T> leftReference = new AtomicReference<T>(null);
         final AtomicReference<U> rightReference = new AtomicReference<U>(null);
         final Promise<Pair<T, U>> zippedPromise = Promises.promise();
         tPromise.then(scheduler, new Action<T>() {
             @Override
             public void call(Promise<T> promise) {
-                if (promise.isSuccessful() && !zippedPromise.isDone()) {
-                    if (rightReference.get() != null) {
-                        final T leftValue = promise.get();
-                        final U rightValue = rightReference.get();
-                        zippedPromise.set(Pair.create(leftValue, rightValue));
-                    } else {
-                        leftReference.set(promise.get());
+                synchronized (sequenceLock) {
+                    if (zippedPromise.isDone()) {
+                        return;
                     }
-                } else {
-                    zippedPromise.setError(promise.getError());
+                    if (!promise.isSuccessful()) {
+                        zippedPromise.setError(promise.getError());
+                        return;
+                    }
+
+                    leftFlag.set(true);
+                    leftReference.set(promise.get());
+
+                    if (leftFlag.get() && rightFlag.get()) {
+                        zippedPromise.set(Pair.create(leftReference.get(), rightReference.get()));
+                    }
                 }
             }
 
@@ -156,16 +165,21 @@ public final class ExtraPromises {
         uPromise.then(scheduler, new Action<U>() {
             @Override
             public void call(Promise<U> promise) {
-                if (promise.isSuccessful() && !zippedPromise.isDone()) {
-                    if (leftReference.get() != null) {
-                        final T leftValue = leftReference.get();
-                        final U rightValue = promise.get();
-                        zippedPromise.set(Pair.create(leftValue, rightValue));
-                    } else {
-                        rightReference.set(promise.get());
+                synchronized (sequenceLock) {
+                    if (zippedPromise.isDone()) {
+                        return;
                     }
-                } else {
-                    zippedPromise.setError(promise.getError());
+                    if (!promise.isSuccessful()) {
+                        zippedPromise.setError(promise.getError());
+                        return;
+                    }
+
+                    rightFlag.set(true);
+                    rightReference.set(promise.get());
+
+                    if (leftFlag.get() && rightFlag.get()) {
+                        zippedPromise.set(Pair.create(leftReference.get(), rightReference.get()));
+                    }
                 }
             }
 
