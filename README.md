@@ -17,12 +17,16 @@ Inspired by https://github.com/linkedin/parseq.
 
 **Maven**
 ````
-TODO.
+<dependency>
+  <groupId>com.github.jparkie</groupId>
+  <artifactId>promise</artifactId>
+  <version>1.0.0</version>
+</dependency>
 ````
 
 **Gradle**
 ````
-TODO.
+compile 'com.github.jparkie:promise:1.0.0'
 ````
 
 ## Optional Classes
