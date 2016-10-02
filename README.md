@@ -1,4 +1,6 @@
 # Promise
+[![Build Status](https://travis-ci.org/jparkie/Promise.svg?branch=master)](https://travis-ci.org/jparkie/Promise)
+
 A lightweight promise library for Java 6+ for method-count restricted environments.
 
 Inspired by https://github.com/linkedin/parseq.
