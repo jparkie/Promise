@@ -16,18 +16,18 @@ Inspired by https://github.com/linkedin/parseq.
 ## Downloads
 
 **Maven**
-````
+```
 <dependency>
   <groupId>com.github.jparkie</groupId>
   <artifactId>promise</artifactId>
   <version>1.0.1</version>
 </dependency>
-````
+```
 
 **Gradle**
-````
+```
 compile 'com.github.jparkie:promise:1.0.1'
-````
+```
 
 ## Optional Classes
 
@@ -41,22 +41,36 @@ As a lightweight promise library, the following packages can be omitted:
 Refer to https://github.com/jparkie/Promise/tree/master/src/test/java/com/github/jparkie/promise for more.
 
 ### Creating Promises
-````java
-final Promise<String> promise = Promises.promise();
+```java
+final Promise<String> lazyPromise = Promises.promise();
 final Promise<String> valuePromise = Promises.value("Hello World.");
 final Promise<String> errorPromise = Promises.error(new NoSuchElementException());
-````
+final Promise<String> eagerPromise = Promises.create(
+        Schedulers.newSimpleScheduler(),
+        new Action<String>() {
+            @Override
+            public void call(Promise<String> promise) {
+                promise.set("Hello World.");
+            }
+
+            @Override
+            public void cancel() {
+                System.out.println("Cancelled.");
+            }
+        });
+```
 
 ### Resolving Promises
-````java
+```java
 final Promise<String> promise = Promises.promise();
 // Method 1:
 promise.set("Hello World.");
 // Method 2:
 promise.setError(new NoSuchElementException());
-````
+```
+
 ### Awaiting on Promises
-````java
+```java
 final Promise<String> promise = Promises.promise();
 
 promise.set("Hello World.");
@@ -68,10 +82,10 @@ try {
 } catch (InterruptedException e) {
     e.printStackTrace();
 }
-````
+```
 
 ### Listening to Promises
-````java
+```java
 final Promise<String> promise = Promises.promise();
 promise.then(Schedulers.newSimpleScheduler(), new Action<String>() {
     @Override
@@ -91,10 +105,10 @@ promise.then(Schedulers.newSimpleScheduler(), new Action<String>() {
 });
 
 promise.set("Hello World.");
-````
+```
 
 ### Transforming Promises
-````java
+```java
 final Promise<String> promise = Promises.promise();
 final Promise<String> transformedPromise = promise
         .then(Schedulers.newSimpleScheduler(), new Function<String, String>() {
@@ -125,10 +139,10 @@ try {
 } catch (InterruptedException e) {
     e.printStackTrace();
 }
-````
+```
 
 ### Cancelling Promises
-````java
+```java
 final Promise<String> promise = Promises.promise();
 promise.then(Schedulers.newSimpleScheduler(), new Action<String>() {
     @Override
@@ -149,12 +163,50 @@ promise.then(Schedulers.newSimpleScheduler(), new Action<String>() {
 promise.cancel();
 
 // The then() Action<String> is never called.
-````
+```
+
+## Extras
+
+The following functions are included in the ExtraPromises class. Refer to the following for more information about their semantics: https://github.com/jparkie/Promise/blob/master/src/main/java/com/github/jparkie/promise/extras/ExtraPromises.java.
+
+### firstCompletedOf()
+```java
+final Promise<String> firstPromise = Promises.promise();
+final Promise<String> secondPromise = Promises.promise();
+final Promise<String> thirdPromise = Promises.promise();
+final Promise<String> firstCompletedOfPromise = ExtraPromises.firstCompletedOf(
+        Schedulers.newSimpleScheduler(),
+        firstPromise,
+        secondPromise,
+        thirdPromise);
+```
+
+### whenAll()
+```java
+final Promise<String> firstPromise = Promises.promise();
+final Promise<Integer> secondPromise = Promises.promise();
+final Promise<Boolean> thirdPromise = Promises.promise();
+final Promise<Void> whenAllPromise = ExtraPromises.whenAll(
+        Schedulers.newSimpleScheduler(),
+        firstPromise,
+        secondPromise,
+        thirdPromise);
+```
+
+### zip()
+```java
+final Promise<String> leftPromise = Promises.promise();
+final Promise<Integer> rightPromise = Promises.promise();
+final Promise<Pair<String, Integer>> zipPromise = ExtraPromises.zip(
+        Schedulers.newSimpleScheduler(),
+        leftPromise,
+        rightPromise);
+```
 
 ## Build
 
-````bash
+```bash
 $ git clone https://github.com/jparkie/Promise.git
 $ cd Promise/
 $ ./gradlew build
-````
+```
