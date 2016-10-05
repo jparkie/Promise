@@ -1,7 +1,5 @@
 package com.github.jparkie.promise.extras;
 
-import android.support.v4.util.Pair;
-
 import com.github.jparkie.promise.Promise;
 import com.github.jparkie.promise.Promises;
 import com.github.jparkie.promise.Schedulers;

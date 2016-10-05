@@ -14,7 +14,15 @@
  * limitations under the License.
  */
 
-package android.support.v4.util;
+/**
+ * This file is taken from package android.support.v4.util. I did not believe in setting a compileOnly dependency
+ * for this class because Java lacks any sort of tuple.
+ *
+ * https://android.googlesource.com/platform/frameworks/support.git/+/master/v4/java/android/support/v4/util/Pair.java
+ *
+ * blob: 7f9e61e92d0c43817bcd0342dd399e54c7f555e8
+ */
+package com.github.jparkie.promise.extras;
 
 /**
  * Container to ease passing around a tuple of two objects. This object provides a sensible
