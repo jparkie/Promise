@@ -20,13 +20,13 @@ Inspired by https://github.com/linkedin/parseq.
 <dependency>
   <groupId>com.github.jparkie</groupId>
   <artifactId>promise</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
 </dependency>
 ```
 
 **Gradle**
 ```
-compile 'com.github.jparkie:promise:1.0.1'
+compile 'com.github.jparkie:promise:1.0.2'
 ```
 
 ## Optional Classes
