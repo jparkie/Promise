@@ -31,6 +31,8 @@ compile 'com.github.jparkie:promise:1.0.2'
 
 ## Optional Classes
 
+For 1.0.2, 65 of 147 counted methods are required methods. Thus, this library only takes 0.1% of the 64K method DEX limit for Android application without Multidex.
+
 As a lightweight promise library, the following packages can be omitted:
 - [com.github.jparkie.promise.actions](https://github.com/jparkie/Promise/tree/master/src/main/java/com/github/jparkie/promise/actions)
 - [com.github.jparkie.promise.extras](https://github.com/jparkie/Promise/tree/master/src/main/java/com/github/jparkie/promise/extras)
