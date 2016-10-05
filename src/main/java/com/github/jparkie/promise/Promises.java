@@ -59,7 +59,9 @@ public final class Promises {
      * @return The new promise.
      */
     public static <T> Promise<T> value(T value) {
-        return new ValuePromise<T>(value);
+        final Promise<T> promise = new DefaultPromise<T>();
+        promise.set(value);
+        return promise;
     }
 
     /**
@@ -69,216 +71,9 @@ public final class Promises {
      * @return The new promise.
      */
     public static <T> Promise<T> error(Throwable error) {
-        return new ErrorPromise<T>(error);
-    }
-
-    private static <T, U> Promise<U> internalThen(
-            final Scheduler scheduler,
-            final Function<T, U> function,
-            final Promise<T> promise) {
-        final Promise<U> deferredPromise = new DefaultPromise<U>();
-        if (promise.isCancelled()) {
-            deferredPromise.cancel();
-        } else {
-            promise.then(scheduler, new Action<T>() {
-                @Override
-                public void call(Promise<T> selfPromise) {
-                    final Promise<U> calledPromise = function.call(selfPromise);
-                    calledPromise.then(scheduler, new Action<U>() {
-                        @Override
-                        public void call(Promise<U> completedPromise) {
-                            if (completedPromise.isSuccessful()) {
-                                deferredPromise.set(completedPromise.get());
-                            } else {
-                                deferredPromise.setError(completedPromise.getError());
-                            }
-                        }
-
-                        @Override
-                        public void cancel() {
-                            if (!deferredPromise.isCancelled()) {
-                                deferredPromise.cancel();
-                            }
-                        }
-                    });
-                }
-
-                @Override
-                public void cancel() {
-                    if (!deferredPromise.isCancelled()) {
-                        deferredPromise.cancel();
-                    }
-                }
-            });
-        }
-
-        return deferredPromise;
-    }
-
-    private static final class ValuePromise<T> implements Promise<T> {
-        private final T value;
-
-        private volatile boolean cancel;
-
-        private ValuePromise(T value) {
-            this.value = value;
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return cancel;
-        }
-
-        @Override
-        public boolean isDone() {
-            return true;
-        }
-
-        @Override
-        public boolean isSuccessful() {
-            return true;
-        }
-
-        @Override
-        public void cancel() {
-            cancel = true;
-        }
-
-        @Override
-        public void await() throws InterruptedException {
-            // Do Nothing.
-        }
-
-        @Override
-        public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
-            return true;
-        }
-
-        @Override
-        public T get() throws IllegalStateException {
-            return value;
-        }
-
-        @Override
-        public Throwable getError() throws IllegalStateException {
-            return null;
-        }
-
-        @Override
-        public void set(T value) throws IllegalStateException {
-            if (isCancelled()) {
-                return;
-            }
-
-            throw new IllegalStateException();
-        }
-
-        @Override
-        public void setError(Throwable error) throws IllegalStateException {
-            if (isCancelled()) {
-                return;
-            }
-
-            throw new IllegalStateException();
-        }
-
-        @Override
-        public <U> Promise<U> then(Scheduler scheduler, Function<T, U> function) {
-            return internalThen(scheduler, function, this);
-        }
-
-        @Override
-        public void then(Scheduler scheduler, Action<T> action) {
-            if (isCancelled()) {
-                scheduler.cancel(action);
-                return;
-            }
-
-            scheduler.schedule(action, this);
-        }
-    }
-
-    private static final class ErrorPromise<T> implements Promise<T> {
-        private final Throwable error;
-
-        private volatile boolean cancel;
-
-        private ErrorPromise(Throwable error) {
-            this.error = error;
-        }
-
-        @Override
-        public boolean isCancelled() {
-            return cancel;
-        }
-
-        @Override
-        public boolean isDone() {
-            return true;
-        }
-
-        @Override
-        public boolean isSuccessful() {
-            return false;
-        }
-
-        @Override
-        public void cancel() {
-            cancel = true;
-        }
-
-        @Override
-        public void await() throws InterruptedException {
-            // Do Nothing.
-        }
-
-        @Override
-        public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
-            return true;
-        }
-
-        @Override
-        public T get() throws IllegalStateException {
-            return null;
-        }
-
-        @Override
-        public Throwable getError() throws IllegalStateException {
-            return error;
-        }
-
-        @Override
-        public void set(T value) throws IllegalStateException {
-            if (isCancelled()) {
-                return;
-            }
-
-            throw new IllegalStateException();
-        }
-
-        @Override
-        public void setError(Throwable error) throws IllegalStateException {
-            if (isCancelled()) {
-                return;
-            }
-
-            throw new IllegalStateException();
-        }
-
-        @Override
-        public <U> Promise<U> then(Scheduler scheduler, Function<T, U> function) {
-            return internalThen(scheduler, function, this);
-        }
-
-        @Override
-        public void then(Scheduler scheduler, Action<T> action) {
-            if (isCancelled()) {
-                scheduler.cancel(action);
-                return;
-            }
-
-            scheduler.schedule(action, this);
-        }
+        final Promise<T> promise = new DefaultPromise<T>();
+        promise.setError(error);
+        return promise;
     }
 
     private static final class DefaultPromise<T> implements Promise<T> {
@@ -411,7 +206,14 @@ public final class Promises {
 
         @Override
         public <U> Promise<U> then(Scheduler scheduler, Function<T, U> function) {
-            return internalThen(scheduler, function, this);
+            final Promise<U> deferredPromise = new DefaultPromise<U>();
+            if (isCancelled()) {
+                deferredPromise.cancel();
+            } else {
+                then(scheduler, new FunctionAction<T, U>(deferredPromise, scheduler, function));
+            }
+
+            return deferredPromise;
         }
 
         @Override
@@ -437,6 +239,47 @@ public final class Promises {
             private ActionContext(Scheduler scheduler, Action<T> action) {
                 this.scheduler = scheduler;
                 this.action = action;
+            }
+        }
+
+        private static final class FunctionAction<T, U> implements Action<T> {
+            private final Promise<U> deferredPromise;
+            private final Scheduler scheduler;
+            private final Function<T, U> function;
+
+            private FunctionAction(Promise<U> deferredPromise, Scheduler scheduler, Function<T, U> function) {
+                this.deferredPromise = deferredPromise;
+                this.scheduler = scheduler;
+                this.function = function;
+            }
+
+            @Override
+            public void call(Promise<T> promise) {
+                final Promise<U> calledPromise = function.call(promise);
+                calledPromise.then(scheduler, new Action<U>() {
+                    @Override
+                    public void call(Promise<U> completedPromise) {
+                        if (completedPromise.isSuccessful()) {
+                            deferredPromise.set(completedPromise.get());
+                        } else {
+                            deferredPromise.setError(completedPromise.getError());
+                        }
+                    }
+
+                    @Override
+                    public void cancel() {
+                        if (!deferredPromise.isCancelled()) {
+                            deferredPromise.cancel();
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void cancel() {
+                if (!deferredPromise.isCancelled()) {
+                    deferredPromise.cancel();
+                }
             }
         }
     }
