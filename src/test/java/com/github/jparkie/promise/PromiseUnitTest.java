@@ -1,5 +1,6 @@
 package com.github.jparkie.promise;
 
+import com.github.jparkie.promise.utils.MemoryLeakVerifier;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -604,5 +605,61 @@ public class PromiseUnitTest {
         } catch (InterruptedException e) {
             fail();
         }
+    }
+
+    @SuppressWarnings("UnusedAssignment")
+    @Test
+    public void testActionGarbageCollected() {
+        final Promise<String> testPromise = Promises.promise();
+        Action<String> testAction = new Action<String>() {
+            @Override
+            public void call(Promise<String> promise) {
+                // Do Nothing.
+            }
+
+            @Override
+            public void cancel() {
+                // Do Nothing.
+            }
+        };
+        final MemoryLeakVerifier<Action<String>> testMemoryLeakVerifier = new MemoryLeakVerifier<Action<String>>(testAction);
+        testPromise.then(Schedulers.newSimpleScheduler(), testAction);
+        testPromise.cancel();
+        testAction = null;
+        testMemoryLeakVerifier.assertGarbageCollected();
+    }
+
+    @SuppressWarnings("UnusedAssignment")
+    @Test
+    public void testThreadedActionGarbageCollected() {
+        final Promise<String> testPromise = Promises.promise();
+        Action<String> testAction = new Action<String>() {
+            @Override
+            public void call(Promise<String> promise) {
+                // Do Nothing.
+            }
+
+            @Override
+            public void cancel() {
+                // Do Nothing.
+            }
+        };
+        final Thread testThread = new Thread() {
+            @Override
+            public void run() {
+                super.run();
+                testPromise.cancel();
+            }
+        };
+        final MemoryLeakVerifier<Action<String>> testMemoryLeakVerifier = new MemoryLeakVerifier<Action<String>>(testAction);
+        testPromise.then(Schedulers.newSimpleScheduler(), testAction);
+        testThread.start();
+        try {
+            testThread.join();
+        } catch (InterruptedException e) {
+            fail();
+        }
+        testAction = null;
+        testMemoryLeakVerifier.assertGarbageCollected();
     }
 }
