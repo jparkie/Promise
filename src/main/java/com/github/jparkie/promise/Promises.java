@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A companion class for {@link Promise}.
@@ -18,7 +17,7 @@ public final class Promises {
 
     /**
      * Returns a promise scheduled to be resolved by the specified action.
-     * Upon cancellation, the specified cancel procedure will be called.
+     * Upon cancellation, the specified cancelFlag procedure will be called.
      * @param scheduler The scheduler to call the action.
      * @param onScheduleAction The action to resolve the provided promise.
      * @param <T> The type of the value promised to be available now, or in the future, or never.
@@ -78,13 +77,13 @@ public final class Promises {
 
     private static final class DefaultPromise<T> implements Promise<T> {
         private final Object promiseLock = new Object();
-        private final AtomicBoolean promiseFlag = new AtomicBoolean(false);
         private final CountDownLatch awaitLatch = new CountDownLatch(1);
         private final List<ActionContext<T>> actionContexts = new ArrayList<ActionContext<T>>();
 
         private volatile T value;
         private volatile Throwable error;
-        private volatile boolean cancel;
+        private volatile boolean cancelFlag;
+        private volatile boolean promiseFlag;
 
         private DefaultPromise() {
             // Do Nothing.
@@ -92,12 +91,12 @@ public final class Promises {
 
         @Override
         public boolean isCancelled() {
-            return cancel;
+            return cancelFlag;
         }
 
         @Override
         public boolean isDone() {
-            return promiseFlag.get();
+            return promiseFlag;
         }
 
         @Override
@@ -107,7 +106,7 @@ public final class Promises {
 
         @Override
         public void cancel() {
-            cancel = true;
+            cancelFlag = true;
 
             final List<ActionContext<T>> temporaryActionContexts;
             synchronized (promiseLock) {
@@ -164,7 +163,7 @@ public final class Promises {
 
                 this.value = value;
                 this.error = null;
-                this.promiseFlag.compareAndSet(false, true);
+                this.promiseFlag = true;
 
                 temporaryActionContexts = new ArrayList<ActionContext<T>>(actionContexts);
                 actionContexts.clear();
@@ -191,7 +190,7 @@ public final class Promises {
 
                 this.value = null;
                 this.error = error;
-                this.promiseFlag.compareAndSet(false, true);
+                this.promiseFlag = true;
 
                 temporaryActionContexts = new ArrayList<ActionContext<T>>(actionContexts);
                 actionContexts.clear();
